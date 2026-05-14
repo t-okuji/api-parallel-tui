@@ -24,7 +24,15 @@ const (
 	requestFieldCount = fieldPayload - fieldName + 1
 )
 
-const requestsFile = "requests.json"
+const sessionDBFile = "sessions.db"
+
+type modalMode int
+
+const (
+	modalNone modalMode = iota
+	modalSaveSession
+	modalLoadSession
+)
 
 type RequestSpec struct {
 	Name      string
@@ -67,23 +75,29 @@ type persistRequest struct {
 	Payload string `json:"payload"`
 }
 
-type persistState struct {
-	Concurrency int              `json:"concurrency"`
-	Repeat      int              `json:"repeat"`
-	Requests    []persistRequest `json:"requests"`
-}
-
 type allResultsMsg struct {
 	Results []Result
+}
+
+type SavedSession struct {
+	ID           int64
+	Name         string
+	UpdatedAt    string
+	RequestCount int
 }
 
 type model struct {
 	ConcurrencyInput textinput.Model
 	RepeatInput      textinput.Model
+	SaveNameInput    textinput.Model
 	Forms            []RequestForm
 	Results          []Result
 	SelectedResult   int
 	Viewport         viewport.Model
+	SavedSessions    []SavedSession
+	SelectedSession  int
+	CurrentSession   string
+	ModalMode        modalMode
 	FocusIndex       int
 	ActiveReq        int
 	Running          bool

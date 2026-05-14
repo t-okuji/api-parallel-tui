@@ -1,2 +1,3 @@
 build/
 requests.json
+sessions.db

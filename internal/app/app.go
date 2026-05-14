@@ -46,16 +46,20 @@ func initialModel() model {
 	repeat := textinput.New()
 	repeat.SetValue("1")
 
+	saveName := textinput.New()
+	saveName.SetWidth(40)
+
 	m := model{
 		ConcurrencyInput: concurrency,
 		RepeatInput:      repeat,
+		SaveNameInput:    saveName,
 		Forms:            []RequestForm{newRequestForm()},
 		Results:          []Result{},
 		Viewport:         viewport.New(),
 		Client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		StatusMessage: "ctrl+n: add  ctrl+d: delete  ctrl+r: run  ctrl+j/k: select result  pgup/pgdn: scroll  ctrl+s: save  ctrl+o: load  q: quit",
+		StatusMessage: "ctrl+n: add  ctrl+d: delete  ctrl+r: run  ctrl+j/k: select result  ctrl+s: save session  ctrl+o: load session  pgup/pgdn: scroll  q: quit",
 	}
 	m.Viewport.SoftWrap = true
 	m.Viewport.MouseWheelEnabled = true

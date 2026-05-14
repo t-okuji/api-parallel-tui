@@ -15,11 +15,6 @@ func decodeFieldIndex(index int) (reqIndex int, field int) {
 	return zeroBased / requestFieldCount, (zeroBased % requestFieldCount) + globalFieldCount
 }
 
-func currentField(index int) int {
-	_, field := decodeFieldIndex(index)
-	return field
-}
-
 func (m *model) clampSelectedResult() {
 	if len(m.Results) == 0 {
 		m.SelectedResult = 0

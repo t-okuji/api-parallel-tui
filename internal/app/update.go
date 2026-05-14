@@ -2,11 +2,16 @@ package app
 
 import (
 	"fmt"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 )
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m.ModalMode != modalNone {
+		return m.updateModal(msg)
+	}
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.Width = msg.Width
@@ -85,29 +90,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.syncViewportContent()
 			return m, nil
 		case "ctrl+s":
-			if err := m.saveToFile(requestsFile); err != nil {
-				m.StatusMessage = "save failed: " + err.Error()
-				m.syncViewportContent()
-				return m, nil
-			}
-			m.StatusMessage = "saved to " + requestsFile
+			m.openSaveSessionModal()
 			m.syncViewportContent()
 			return m, nil
 		case "ctrl+o":
-			next, err := loadFromFile(requestsFile, m.Client)
+			sessions, err := listSavedSessions()
 			if err != nil {
 				m.StatusMessage = "load failed: " + err.Error()
 				m.syncViewportContent()
 				return m, nil
 			}
-			next.Width = m.Width
-			next.Height = m.Height
-			next.resizeInputs()
-			next.resizeViewport()
-			next.updateFocus()
-			next.StatusMessage = "loaded from " + requestsFile
-			next.syncViewportContent()
-			return next, nil
+			if len(sessions) == 0 {
+				m.StatusMessage = "no saved sessions"
+				m.syncViewportContent()
+				return m, nil
+			}
+			m.openLoadSessionModal(sessions)
+			m.syncViewportContent()
+			return m, nil
 		case "ctrl+j":
 			if len(m.Results) > 0 && m.SelectedResult < len(m.Results)-1 {
 				m.SelectedResult++
@@ -123,32 +123,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.syncViewportContent()
 			return m, nil
 		case "tab":
-			m.FocusIndex = (m.FocusIndex + 1) % m.totalFields()
+			m.moveToAdjacentRequest(1)
 			m.updateFocus()
 			m.syncViewportContent()
 			return m, nil
 		case "shift+tab":
-			m.FocusIndex--
-			if m.FocusIndex < 0 {
-				m.FocusIndex = m.totalFields() - 1
-			}
+			m.moveToAdjacentRequest(-1)
 			m.updateFocus()
 			m.syncViewportContent()
 			return m, nil
 		case "up":
-			if m.FocusIndex >= globalFieldCount && m.ActiveReq > 0 {
-				m.ActiveReq--
-				m.FocusIndex = fieldIndexFor(m.ActiveReq, currentField(m.FocusIndex))
-				m.updateFocus()
-			}
+			m.moveVertical(-1)
 			m.syncViewportContent()
 			return m, nil
 		case "down":
-			if m.FocusIndex >= globalFieldCount && m.ActiveReq < len(m.Forms)-1 {
-				m.ActiveReq++
-				m.FocusIndex = fieldIndexFor(m.ActiveReq, currentField(m.FocusIndex))
-				m.updateFocus()
-			}
+			m.moveVertical(1)
 			m.syncViewportContent()
 			return m, nil
 		case "pgdown", "ctrl+f":
@@ -173,6 +162,112 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m, cmd = m.updateFocusedInput(msg)
 	m.syncViewportContent()
 	return m, cmd
+}
+
+func (m model) updateModal(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch m.ModalMode {
+	case modalSaveSession:
+		if key, ok := msg.(tea.KeyPressMsg); ok {
+			switch key.String() {
+			case "esc":
+				m.closeModal()
+				m.StatusMessage = "save cancelled"
+				m.syncViewportContent()
+				return m, nil
+			case "enter":
+				name := strings.TrimSpace(m.SaveNameInput.Value())
+				if name == "" {
+					m.StatusMessage = "session name is required"
+					m.syncViewportContent()
+					return m, nil
+				}
+				if err := m.saveSession(name); err != nil {
+					m.StatusMessage = "save failed: " + err.Error()
+					m.syncViewportContent()
+					return m, nil
+				}
+				m.CurrentSession = name
+				m.closeModal()
+				m.StatusMessage = "saved session: " + name
+				m.syncViewportContent()
+				return m, nil
+			}
+		}
+
+		var cmd tea.Cmd
+		m.SaveNameInput, cmd = m.SaveNameInput.Update(msg)
+		m.syncViewportContent()
+		return m, cmd
+
+	case modalLoadSession:
+		if key, ok := msg.(tea.KeyPressMsg); ok {
+			switch key.String() {
+			case "esc":
+				m.closeModal()
+				m.StatusMessage = "load cancelled"
+				m.syncViewportContent()
+				return m, nil
+			case "up", "k":
+				if m.SelectedSession > 0 {
+					m.SelectedSession--
+				}
+				m.syncViewportContent()
+				return m, nil
+			case "down", "j":
+				if m.SelectedSession < len(m.SavedSessions)-1 {
+					m.SelectedSession++
+				}
+				m.syncViewportContent()
+				return m, nil
+			case "enter":
+				if len(m.SavedSessions) == 0 {
+					m.closeModal()
+					m.syncViewportContent()
+					return m, nil
+				}
+				next, err := loadSessionByID(m.SavedSessions[m.SelectedSession].ID, m.Client)
+				if err != nil {
+					m.StatusMessage = "load failed: " + err.Error()
+					m.closeModal()
+					m.syncViewportContent()
+					return m, nil
+				}
+				next.Width = m.Width
+				next.Height = m.Height
+				next.resizeInputs()
+				next.resizeViewport()
+				next.syncViewportContent()
+				next.StatusMessage = "loaded session: " + next.CurrentSession
+				return next, nil
+			}
+		}
+	}
+
+	m.syncViewportContent()
+	return m, nil
+}
+
+func (m *model) openSaveSessionModal() {
+	m.ModalMode = modalSaveSession
+	m.SaveNameInput.SetValue(m.defaultSessionName())
+	m.SaveNameInput.Focus()
+	m.Viewport.GotoTop()
+}
+
+func (m *model) openLoadSessionModal(sessions []SavedSession) {
+	m.ModalMode = modalLoadSession
+	m.SavedSessions = sessions
+	m.SelectedSession = 0
+	m.SaveNameInput.Blur()
+	m.Viewport.GotoTop()
+}
+
+func (m *model) closeModal() {
+	m.ModalMode = modalNone
+	m.SavedSessions = nil
+	m.SelectedSession = 0
+	m.SaveNameInput.Blur()
+	m.updateFocus()
 }
 
 func (m *model) updateFocus() {
@@ -248,4 +343,61 @@ func (m model) updateFocusedInput(msg tea.Msg) (model, tea.Cmd) {
 	}
 	m.Forms[reqIndex] = form
 	return m, cmd
+}
+
+func (m *model) moveVertical(delta int) {
+	switch m.FocusIndex {
+	case fieldConcurrency:
+		if delta > 0 {
+			m.FocusIndex = fieldRepeat
+			m.updateFocus()
+		}
+	case fieldRepeat:
+		if delta < 0 {
+			m.FocusIndex = fieldConcurrency
+		} else {
+			m.FocusIndex = fieldIndexFor(m.ActiveReq, fieldName)
+		}
+		m.updateFocus()
+	default:
+		reqIndex, field := decodeFieldIndex(m.FocusIndex)
+		if reqIndex < 0 || reqIndex >= len(m.Forms) {
+			return
+		}
+
+		nextField := field + delta
+		switch {
+		case nextField < fieldName:
+			m.FocusIndex = fieldRepeat
+		case nextField > fieldPayload:
+			return
+		default:
+			m.FocusIndex = fieldIndexFor(reqIndex, nextField)
+		}
+		m.updateFocus()
+	}
+}
+
+func (m *model) moveToAdjacentRequest(delta int) {
+	if len(m.Forms) == 0 {
+		return
+	}
+	if m.FocusIndex < globalFieldCount {
+		m.FocusIndex = fieldIndexFor(m.ActiveReq, fieldName)
+		return
+	}
+
+	reqIndex, field := decodeFieldIndex(m.FocusIndex)
+	if reqIndex < 0 || reqIndex >= len(m.Forms) {
+		return
+	}
+
+	reqIndex += delta
+	if reqIndex < 0 {
+		reqIndex = len(m.Forms) - 1
+	}
+	if reqIndex >= len(m.Forms) {
+		reqIndex = 0
+	}
+	m.FocusIndex = fieldIndexFor(reqIndex, field)
 }

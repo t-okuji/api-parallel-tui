@@ -41,10 +41,6 @@ func (m model) repeatCount() int {
 	return n
 }
 
-func (m model) totalFields() int {
-	return globalFieldCount + len(m.Forms)*requestFieldCount
-}
-
 func parseHeaders(raw string) map[string]string {
 	headers := map[string]string{}
 	for _, line := range strings.Split(raw, "\n") {

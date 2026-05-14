@@ -72,6 +72,11 @@ func (m model) renderContent() string {
 	b.WriteString(m.renderGlobalSection())
 	b.WriteString("\n")
 
+	if modal := m.renderModal(); modal != "" {
+		b.WriteString(modal)
+		b.WriteString("\n")
+	}
+
 	for i, form := range m.Forms {
 		b.WriteString(m.renderRequestSection(i, form))
 		b.WriteString("\n")
@@ -87,7 +92,40 @@ func (m model) renderGlobalSection() string {
 		label,
 		"Parallelism: " + m.ConcurrencyInput.View(),
 		"Repeat:      " + m.RepeatInput.View(),
+		"Session:     " + m.currentSessionLabel(),
 	}, "\n")
+}
+
+func (m model) renderModal() string {
+	switch m.ModalMode {
+	case modalSaveSession:
+		return lipgloss.NewStyle().
+			Border(lipgloss.DoubleBorder()).
+			BorderForeground(lipgloss.Color("86")).
+			Padding(0, 1).
+			Render(strings.Join([]string{
+				"[Save Session]",
+				"Name: " + m.SaveNameInput.View(),
+				"enter: save  esc: cancel",
+			}, "\n"))
+	case modalLoadSession:
+		lines := []string{"[Load Session]"}
+		for i, session := range m.SavedSessions {
+			cursor := " "
+			if i == m.SelectedSession {
+				cursor = ">"
+			}
+			lines = append(lines, fmt.Sprintf("%s %s (%d requests, %s)", cursor, session.Name, session.RequestCount, session.UpdatedAt))
+		}
+		lines = append(lines, "enter: load  up/down: select  esc: cancel")
+		return lipgloss.NewStyle().
+			Border(lipgloss.DoubleBorder()).
+			BorderForeground(lipgloss.Color("86")).
+			Padding(0, 1).
+			Render(strings.Join(lines, "\n"))
+	default:
+		return ""
+	}
 }
 
 func (m model) renderRequestSection(index int, form RequestForm) string {

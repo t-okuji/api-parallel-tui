@@ -12,7 +12,7 @@ TUI 上でリクエストを編集し、そのまま複数回・複数並列で�
 - `Repeat` で各 Request の実行回数を指定
 - 実行結果を `Request 1`, `Request 2` ごとに表示
 - 選択中の結果の `Body Preview` を表示
-- `requests.json` への保存 / 読み込み
+- SQLite へのセッション保存 / 読み込み
 - 画面が小さい場合でも縦スクロール可能
 
 ## Screen
@@ -106,15 +106,15 @@ golangci-lint fmt
 - `ctrl+r`: 実行
 - `ctrl+n`: Request 追加
 - `ctrl+d`: Request 削除
-- `ctrl+s`: `requests.json` へ保存
-- `ctrl+o`: `requests.json` を読み込み
+- `ctrl+s`: セッション名を入力して保存
+- `ctrl+o`: 保存済みセッションを読み込み
 
 入力欄移動:
 
-- `tab`: 次の入力欄
-- `shift+tab`: 前の入力欄
-- `up`: 前の Request の同じ欄へ移動
-- `down`: 次の Request の同じ欄へ移動
+- `up`: 同じ Request 内で前の入力欄へ移動
+- `down`: 同じ Request 内で次の入力欄へ移動
+- `tab`: 次の Request の同じ欄へ移動
+- `shift+tab`: 前の Request の同じ欄へ移動
 
 結果選択:
 
@@ -139,13 +139,14 @@ golangci-lint fmt
 
 ## Save Format
 
-保存先はカレントディレクトリの `requests.json` です。
+保存先はカレントディレクトリの `sessions.db` です。
 
 保存内容:
 
 - `concurrency`
 - `repeat`
 - `requests`
+- `session name`
 
 ## Notes
 

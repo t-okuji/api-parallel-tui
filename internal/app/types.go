@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -60,6 +61,8 @@ type Result struct {
 	Duration   time.Duration
 	Body       string
 	Err        error
+	Aborted    bool
+	Started    bool
 	Queued     bool
 	Running    bool
 	Done       bool
@@ -84,6 +87,7 @@ type allResultsMsg struct {
 
 type runStartMsg struct {
 	events chan runEventMsg
+	cancel context.CancelFunc
 }
 
 type runEventMsg interface {
@@ -129,6 +133,8 @@ type model struct {
 	ActiveReq        int
 	Running          bool
 	RunEvents        chan runEventMsg
+	RunCancel        context.CancelFunc
+	CancelRequested  bool
 	StatusMessage    string
 	Width            int
 	Height           int

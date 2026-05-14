@@ -67,7 +67,7 @@ func initialModel() model {
 		Client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		StatusMessage: "ctrl+n: add  ctrl+d: delete  ctrl+r: run  f2: toggle mouse capture  ctrl+s: save session  ctrl+o: load session  q: quit",
+		StatusMessage: "ctrl+n: add  ctrl+d: delete  ctrl+r: run  ctrl+x: cancel run  f2: toggle mouse capture  ctrl+s: save session  ctrl+o: load session  q: quit",
 	}
 	m.Viewport.SoftWrap = true
 	m.Viewport.MouseWheelEnabled = true

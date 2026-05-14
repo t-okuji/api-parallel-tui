@@ -242,6 +242,10 @@ func (m model) resultIcon(r Result) string {
 		return "…"
 	case r.Running:
 		return "⏳"
+	case r.Aborted && r.Started:
+		return "⏹"
+	case r.Aborted:
+		return "⊘"
 	case r.Err != nil:
 		return "❌"
 	case r.Done:
@@ -257,6 +261,10 @@ func (m model) resultSummary(method string, r Result) string {
 		return "queued"
 	case r.Running:
 		return "running..."
+	case r.Aborted && r.Started:
+		return "aborted while running"
+	case r.Aborted:
+		return "aborted before start"
 	case r.Err != nil:
 		return r.Err.Error()
 	case r.Done:
@@ -267,18 +275,37 @@ func (m model) resultSummary(method string, r Result) string {
 }
 
 func (m model) runningStatus() string {
-	var queued, running, done int
+	var queued, running, done, abortedRunning, abortedQueued int
 	for _, result := range m.Results {
 		switch {
 		case result.Queued:
 			queued++
 		case result.Running:
 			running++
+		case result.Aborted && result.Started:
+			abortedRunning++
+		case result.Aborted:
+			abortedQueued++
 		case result.Done:
 			done++
 		}
 	}
-	return fmt.Sprintf("running=%d queued=%d completed=%d total=%d", running, queued, done, len(m.Results))
+	return fmt.Sprintf("running=%d queued=%d completed=%d aborted_running=%d aborted_queued=%d total=%d", running, queued, done, abortedRunning, abortedQueued, len(m.Results))
+}
+
+func (m model) cancelledStatus() string {
+	var completed, abortedRunning, abortedQueued int
+	for _, result := range m.Results {
+		switch {
+		case result.Aborted && result.Started:
+			abortedRunning++
+		case result.Aborted:
+			abortedQueued++
+		case result.Done:
+			completed++
+		}
+	}
+	return fmt.Sprintf("aborted run: completed=%d aborted_running=%d aborted_queued=%d total=%d", completed, abortedRunning, abortedQueued, len(m.Results))
 }
 
 func (m model) resultDisplayName(result Result) string {

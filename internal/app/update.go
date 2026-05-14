@@ -34,6 +34,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case runStartMsg:
 		m.RunEvents = msg.events
+		m.RunCancel = msg.cancel
+		m.CancelRequested = false
 		m.syncViewportContent()
 		return m, waitForRunEventCmd(msg.events)
 
@@ -42,6 +44,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Results[msg.Index].Queued = false
 			m.Results[msg.Index].Running = true
 			m.Results[msg.Index].Done = false
+			m.Results[msg.Index].Started = true
 		}
 		m.StatusMessage = m.runningStatus()
 		m.syncViewportContent()
@@ -62,7 +65,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case runCompletedMsg:
 		m.Running = false
 		m.RunEvents = nil
-		m.StatusMessage = fmt.Sprintf("completed %d execution(s)", len(m.Results))
+		m.RunCancel = nil
+		if m.CancelRequested {
+			m.StatusMessage = m.cancelledStatus()
+		} else {
+			m.StatusMessage = fmt.Sprintf("completed %d execution(s)", len(m.Results))
+		}
+		m.CancelRequested = false
 		m.syncViewportContent()
 		return m, nil
 
@@ -72,6 +81,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.syncViewportContent()
 			return m, tea.Quit
 		case "ctrl+r":
+			if m.Running {
+				m.StatusMessage = "run already in progress"
+				m.syncViewportContent()
+				return m, nil
+			}
 			specs := m.collectSpecs()
 			if len(specs) == 0 {
 				m.StatusMessage = "no requests to run"
@@ -96,6 +110,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.StatusMessage = fmt.Sprintf("queued %d execution(s) with parallelism=%d", len(specs), m.concurrency())
 			m.syncViewportContent()
 			return m, runAllCmd(specs, m.concurrency(), m.Client)
+		case "ctrl+x":
+			if !m.Running || m.RunCancel == nil {
+				m.StatusMessage = "no active run to abort"
+				m.syncViewportContent()
+				return m, nil
+			}
+			m.CancelRequested = true
+			m.RunCancel()
+			m.StatusMessage = "aborting active run..."
+			m.syncViewportContent()
+			return m, nil
 		case "ctrl+n":
 			m.Forms = append(m.Forms, newRequestForm())
 			m.ActiveReq = len(m.Forms) - 1

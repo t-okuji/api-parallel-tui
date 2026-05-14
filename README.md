@@ -105,6 +105,7 @@ golangci-lint fmt
 
 - `q` / `ctrl+c`: 終了
 - `ctrl+r`: 実行
+- `ctrl+x`: 実行中のリクエストを中止
 - `ctrl+n`: Request 追加
 - `ctrl+d`: Request 削除
 - `ctrl+s`: セッション名を入力して保存
@@ -137,6 +138,8 @@ golangci-lint fmt
 `Repeat > 1` の場合、各実行は `#1/5`, `#2/5` のように表示されます。
 
 選択中の結果には `>` が付き、そのレスポンス本文が `Body Preview` に表示されます。
+
+`ctrl+x` で中止した場合は、`aborted while running` と `aborted before start` を分けて表示します。
 
 ## Save Format
 

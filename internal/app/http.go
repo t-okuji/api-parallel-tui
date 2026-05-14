@@ -2,6 +2,8 @@ package app
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"io"
 	"net/http"
 	"sync"
@@ -17,8 +19,11 @@ func runAllCmd(specs []RequestSpec, concurrency int, client *http.Client) tea.Cm
 		}
 
 		events := make(chan runEventMsg)
+		ctx, rawCancel := context.WithCancel(context.Background())
+		cancel := sync.OnceFunc(rawCancel)
 
 		go func() {
+			defer cancel()
 			defer close(events)
 
 			sem := make(chan struct{}, concurrency)
@@ -28,11 +33,27 @@ func runAllCmd(specs []RequestSpec, concurrency int, client *http.Client) tea.Cm
 				wg.Add(1)
 				go func(i int, spec RequestSpec) {
 					defer wg.Done()
-					sem <- struct{}{}
+
+					select {
+					case sem <- struct{}{}:
+					case <-ctx.Done():
+						events <- resultDoneMsg{Index: i, Result: abortedQueuedResult(spec)}
+						return
+					}
+					defer func() {
+						<-sem
+					}()
+
+					select {
+					case <-ctx.Done():
+						events <- resultDoneMsg{Index: i, Result: abortedQueuedResult(spec)}
+						return
+					default:
+					}
+
 					events <- resultRunningMsg{Index: i}
-					result := executeRequest(spec, client)
+					result := executeRequest(ctx, spec, client)
 					events <- resultDoneMsg{Index: i, Result: result}
-					<-sem
 				}(i, spec)
 			}
 
@@ -40,7 +61,7 @@ func runAllCmd(specs []RequestSpec, concurrency int, client *http.Client) tea.Cm
 			events <- runCompletedMsg{}
 		}()
 
-		return runStartMsg{events: events}
+		return runStartMsg{events: events, cancel: cancel}
 	}
 }
 
@@ -54,13 +75,14 @@ func waitForRunEventCmd(events chan runEventMsg) tea.Cmd {
 	}
 }
 
-func executeRequest(spec RequestSpec, client *http.Client) Result {
+func executeRequest(ctx context.Context, spec RequestSpec, client *http.Client) Result {
 	base := Result{
 		Name:      spec.Name,
 		Method:    spec.Method,
 		SourceIdx: spec.SourceIdx,
 		RunIndex:  spec.RunIndex,
 		RunTotal:  spec.RunTotal,
+		Started:   true,
 	}
 
 	start := time.Now()
@@ -70,7 +92,7 @@ func executeRequest(spec RequestSpec, client *http.Client) Result {
 		body = bytes.NewReader(spec.Body)
 	}
 
-	req, err := http.NewRequest(spec.Method, spec.URL, body)
+	req, err := http.NewRequestWithContext(ctx, spec.Method, spec.URL, body)
 	if err != nil {
 		base.Duration = time.Since(start)
 		base.Err = err
@@ -88,6 +110,12 @@ func executeRequest(spec RequestSpec, client *http.Client) Result {
 	resp, err := client.Do(req)
 	if err != nil {
 		base.Duration = time.Since(start)
+		if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
+			base.Aborted = true
+			base.Err = nil
+			base.Done = true
+			return base
+		}
 		base.Err = err
 		base.Done = true
 		return base
@@ -110,4 +138,17 @@ func executeRequest(spec RequestSpec, client *http.Client) Result {
 	base.Body = string(respBody)
 	base.Done = true
 	return base
+}
+
+func abortedQueuedResult(spec RequestSpec) Result {
+	return Result{
+		Name:      spec.Name,
+		Method:    spec.Method,
+		SourceIdx: spec.SourceIdx,
+		RunIndex:  spec.RunIndex,
+		RunTotal:  spec.RunTotal,
+		Aborted:   true,
+		Started:   false,
+		Done:      true,
+	}
 }

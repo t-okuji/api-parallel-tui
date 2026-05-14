@@ -1,4 +1,4 @@
-module api-executor
+module api-parallel-tui
 
 go 1.26.3
 

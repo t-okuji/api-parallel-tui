@@ -58,7 +58,7 @@ X-Request-ID: test-001
 ## Run
 
 ```bash
-go run ./cmd/api-executor
+go run ./cmd/api-parallel-tui
 ```
 
 ## Build
@@ -67,21 +67,21 @@ go run ./cmd/api-executor
 
 ```bash
 mkdir -p build
-go build -o build/api-executor ./cmd/api-executor
+go build -o build/api-parallel-tui ./cmd/api-parallel-tui
 ```
 
 Windows 向け `.exe`:
 
 ```bash
 mkdir -p build
-GOOS=windows GOARCH=amd64 go build -o build/api-executor-windows-amd64.exe ./cmd/api-executor
+GOOS=windows GOARCH=amd64 go build -o build/api-parallel-tui-windows-amd64.exe ./cmd/api-parallel-tui
 ```
 
 ARM Windows 向け:
 
 ```bash
 mkdir -p build
-GOOS=windows GOARCH=arm64 go build -o build/api-executor-windows-arm64.exe ./cmd/api-executor
+GOOS=windows GOARCH=arm64 go build -o build/api-parallel-tui-windows-arm64.exe ./cmd/api-parallel-tui
 ```
 
 ## Lint

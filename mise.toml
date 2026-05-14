@@ -4,14 +4,14 @@ golangci-lint = "2.12.2"
 
 [tasks.run]
 description = "Run the TUI application"
-run = "go run ./cmd/api-executor"
+run = "go run ./cmd/api-parallel-tui"
 alias = "r"
 
 [tasks.build]
 description = "Build the local binary into build/"
 run = [
   "mkdir -p build",
-  "go build -o build/api-executor ./cmd/api-executor",
+  "go build -o build/api-parallel-tui ./cmd/api-parallel-tui",
 ]
 alias = "b"
 
@@ -19,14 +19,14 @@ alias = "b"
 description = "Build Windows amd64 executable into build/"
 run = [
   "mkdir -p build",
-  "GOOS=windows GOARCH=amd64 go build -o build/api-executor-windows-amd64.exe ./cmd/api-executor",
+  "GOOS=windows GOARCH=amd64 go build -o build/api-parallel-tui-windows-amd64.exe ./cmd/api-parallel-tui",
 ]
 
 [tasks.build-windows-arm64]
 description = "Build Windows arm64 executable into build/"
 run = [
   "mkdir -p build",
-  "GOOS=windows GOARCH=arm64 go build -o build/api-executor-windows-arm64.exe ./cmd/api-executor",
+  "GOOS=windows GOARCH=arm64 go build -o build/api-parallel-tui-windows-arm64.exe ./cmd/api-parallel-tui",
 ]
 
 [tasks.lint]

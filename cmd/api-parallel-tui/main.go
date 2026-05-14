@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"api-executor/internal/app"
+	"api-parallel-tui/internal/app"
 )
 
 func main() {

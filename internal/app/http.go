@@ -16,22 +16,41 @@ func runAllCmd(specs []RequestSpec, concurrency int, client *http.Client) tea.Cm
 			concurrency = 1
 		}
 
-		results := make([]Result, len(specs))
-		sem := make(chan struct{}, concurrency)
-		var wg sync.WaitGroup
+		events := make(chan runEventMsg)
 
-		for i, spec := range specs {
-			wg.Add(1)
-			go func(i int, spec RequestSpec) {
-				defer wg.Done()
-				sem <- struct{}{}
-				defer func() { <-sem }()
-				results[i] = executeRequest(spec, client)
-			}(i, spec)
+		go func() {
+			defer close(events)
+
+			sem := make(chan struct{}, concurrency)
+			var wg sync.WaitGroup
+
+			for i, spec := range specs {
+				wg.Add(1)
+				go func(i int, spec RequestSpec) {
+					defer wg.Done()
+					sem <- struct{}{}
+					events <- resultRunningMsg{Index: i}
+					result := executeRequest(spec, client)
+					events <- resultDoneMsg{Index: i, Result: result}
+					<-sem
+				}(i, spec)
+			}
+
+			wg.Wait()
+			events <- runCompletedMsg{}
+		}()
+
+		return runStartMsg{events: events}
+	}
+}
+
+func waitForRunEventCmd(events chan runEventMsg) tea.Cmd {
+	return func() tea.Msg {
+		msg, ok := <-events
+		if !ok {
+			return runCompletedMsg{}
 		}
-
-		wg.Wait()
-		return allResultsMsg{Results: results}
+		return msg
 	}
 }
 

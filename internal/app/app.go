@@ -56,10 +56,11 @@ func initialModel() model {
 		Forms:            []RequestForm{newRequestForm()},
 		Results:          []Result{},
 		Viewport:         viewport.New(),
+		MouseModeEnabled: true,
 		Client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		StatusMessage: "ctrl+n: add  ctrl+d: delete  ctrl+r: run  ctrl+j/k: select result  ctrl+s: save session  ctrl+o: load session  pgup/pgdn: scroll  q: quit",
+		StatusMessage: "ctrl+n: add  ctrl+d: delete  ctrl+r: run  f2: toggle mouse capture  ctrl+s: save session  ctrl+o: load session  q: quit",
 	}
 	m.Viewport.SoftWrap = true
 	m.Viewport.MouseWheelEnabled = true

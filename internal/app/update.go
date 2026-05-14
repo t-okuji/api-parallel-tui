@@ -23,10 +23,45 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case allResultsMsg:
 		m.Running = false
+		m.RunEvents = nil
 		m.Results = msg.Results
 		m.clampSelectedResult()
 		m.syncActiveRequestToSelectedResult()
 		m.StatusMessage = fmt.Sprintf("completed %d execution(s)", len(msg.Results))
+		m.syncViewportContent()
+		return m, nil
+
+	case runStartMsg:
+		m.RunEvents = msg.events
+		m.syncViewportContent()
+		return m, waitForRunEventCmd(msg.events)
+
+	case resultRunningMsg:
+		if msg.Index >= 0 && msg.Index < len(m.Results) {
+			m.Results[msg.Index].Queued = false
+			m.Results[msg.Index].Running = true
+			m.Results[msg.Index].Done = false
+		}
+		m.StatusMessage = m.runningStatus()
+		m.syncViewportContent()
+		return m, waitForRunEventCmd(m.RunEvents)
+
+	case resultDoneMsg:
+		if msg.Index >= 0 && msg.Index < len(m.Results) {
+			result := msg.Result
+			result.Queued = false
+			result.Running = false
+			result.Done = true
+			m.Results[msg.Index] = result
+		}
+		m.StatusMessage = m.runningStatus()
+		m.syncViewportContent()
+		return m, waitForRunEventCmd(m.RunEvents)
+
+	case runCompletedMsg:
+		m.Running = false
+		m.RunEvents = nil
+		m.StatusMessage = fmt.Sprintf("completed %d execution(s)", len(m.Results))
 		m.syncViewportContent()
 		return m, nil
 
@@ -48,7 +83,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.SelectedResult = 0
 			for i, spec := range specs {
 				m.Results[i] = Result{
-					Running:   true,
+					Queued:    true,
+					Running:   false,
 					Name:      spec.Name,
 					Method:    spec.Method,
 					SourceIdx: spec.SourceIdx,
@@ -56,12 +92,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					RunTotal:  spec.RunTotal,
 				}
 			}
-			m.StatusMessage = fmt.Sprintf(
-				"running %d execution(s) from %d request(s) with parallelism=%d",
-				len(specs),
-				len(m.Forms),
-				m.concurrency(),
-			)
+			m.StatusMessage = fmt.Sprintf("queued %d execution(s) with parallelism=%d", len(specs), m.concurrency())
 			m.syncViewportContent()
 			return m, runAllCmd(specs, m.concurrency(), m.Client)
 		case "ctrl+n":
@@ -108,6 +139,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.openLoadSessionModal(sessions)
 			m.syncViewportContent()
 			return m, nil
+		case "f2":
+			m.MouseModeEnabled = !m.MouseModeEnabled
+			if m.MouseModeEnabled {
+				m.StatusMessage = "mouse capture enabled: wheel scroll available, drag selection disabled"
+			} else {
+				m.StatusMessage = "mouse capture disabled: drag selection available, use keyboard for scroll"
+			}
+			m.syncViewportContent()
+			return m, nil
 		case "ctrl+j":
 			if len(m.Results) > 0 && m.SelectedResult < len(m.Results)-1 {
 				m.SelectedResult++
@@ -152,6 +192,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if _, ok := msg.(tea.MouseMsg); ok {
+		if !m.MouseModeEnabled {
+			m.syncViewportContent()
+			return m, nil
+		}
 		var cmd tea.Cmd
 		m.Viewport, cmd = m.Viewport.Update(msg)
 		m.syncViewportContent()

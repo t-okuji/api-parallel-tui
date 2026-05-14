@@ -22,7 +22,9 @@ func (m model) View() tea.View {
 
 	v := tea.NewView(screen.String())
 	v.AltScreen = true
-	v.MouseMode = tea.MouseModeCellMotion
+	if m.MouseModeEnabled {
+		v.MouseMode = tea.MouseModeCellMotion
+	}
 	return v
 }
 
@@ -229,6 +231,8 @@ func (m model) renderRequestResultSection(reqIndex int) (string, bool) {
 
 func (m model) resultIcon(r Result) string {
 	switch {
+	case r.Queued:
+		return "…"
 	case r.Running:
 		return "⏳"
 	case r.Err != nil:
@@ -242,6 +246,8 @@ func (m model) resultIcon(r Result) string {
 
 func (m model) resultSummary(method string, r Result) string {
 	switch {
+	case r.Queued:
+		return "queued"
 	case r.Running:
 		return "running..."
 	case r.Err != nil:
@@ -251,6 +257,21 @@ func (m model) resultSummary(method string, r Result) string {
 	default:
 		return "not started"
 	}
+}
+
+func (m model) runningStatus() string {
+	var queued, running, done int
+	for _, result := range m.Results {
+		switch {
+		case result.Queued:
+			queued++
+		case result.Running:
+			running++
+		case result.Done:
+			done++
+		}
+	}
+	return fmt.Sprintf("running=%d queued=%d completed=%d total=%d", running, queued, done, len(m.Results))
 }
 
 func (m model) resultDisplayName(result Result) string {

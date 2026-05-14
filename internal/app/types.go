@@ -58,6 +58,7 @@ type Result struct {
 	Duration   time.Duration
 	Body       string
 	Err        error
+	Queued     bool
 	Running    bool
 	Done       bool
 	Name       string
@@ -79,6 +80,29 @@ type allResultsMsg struct {
 	Results []Result
 }
 
+type runStartMsg struct {
+	events chan runEventMsg
+}
+
+type runEventMsg interface {
+	isRunEventMsg()
+}
+
+type resultRunningMsg struct {
+	Index int
+}
+
+type resultDoneMsg struct {
+	Index  int
+	Result Result
+}
+
+type runCompletedMsg struct{}
+
+func (resultRunningMsg) isRunEventMsg() {}
+func (resultDoneMsg) isRunEventMsg()    {}
+func (runCompletedMsg) isRunEventMsg()  {}
+
 type SavedSession struct {
 	ID           int64
 	Name         string
@@ -97,10 +121,12 @@ type model struct {
 	SavedSessions    []SavedSession
 	SelectedSession  int
 	CurrentSession   string
+	MouseModeEnabled bool
 	ModalMode        modalMode
 	FocusIndex       int
 	ActiveReq        int
 	Running          bool
+	RunEvents        chan runEventMsg
 	StatusMessage    string
 	Width            int
 	Height           int

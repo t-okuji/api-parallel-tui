@@ -9,6 +9,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/alecthomas/chroma/v2"
+	"github.com/alecthomas/chroma/v2/formatters"
+	"github.com/alecthomas/chroma/v2/lexers"
+	"github.com/alecthomas/chroma/v2/styles"
 )
 
 func (m model) View() tea.View {
@@ -151,6 +155,9 @@ func (m model) renderRequestSection(index int, form RequestForm) string {
 		"",
 		"Payload:",
 		form.PayloadArea.View(),
+		"",
+		"Payload Preview:",
+		renderPayloadPreview(form.PayloadArea.Value()),
 	}
 
 	return lipgloss.NewStyle().
@@ -314,7 +321,54 @@ func formatBody(raw string) string {
 
 	var pretty bytes.Buffer
 	if json.Valid([]byte(raw)) && json.Indent(&pretty, []byte(raw), "", "  ") == nil {
-		return pretty.String()
+		return highlightJSON(pretty.String())
 	}
 	return raw
+}
+
+func renderPayloadPreview(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("240")).
+			Padding(0, 1).
+			Render("(empty)")
+	}
+
+	return lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		Padding(0, 1).
+		Render(formatBody(trimmed))
+}
+
+func highlightJSON(source string) string {
+	lexer := lexers.Get("json")
+	if lexer == nil {
+		return source
+	}
+	lexer = chroma.Coalesce(lexer)
+
+	style := styles.Get("monokai")
+	if style == nil {
+		style = styles.Fallback
+	}
+
+	formatter := formatters.Get("terminal256")
+	if formatter == nil {
+		formatter = formatters.Fallback
+	}
+
+	iterator, err := lexer.Tokenise(nil, source)
+	if err != nil {
+		return source
+	}
+
+	var out bytes.Buffer
+	if err := formatter.Format(&out, style, iterator); err != nil {
+		return source
+	}
+
+	return strings.TrimRight(out.String(), "\n")
 }

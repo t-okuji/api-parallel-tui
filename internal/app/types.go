@@ -26,6 +26,8 @@ const (
 
 const sessionDBFile = "sessions.db"
 
+const maxTextareaContentHeight = 10000
+
 type modalMode int
 
 const (

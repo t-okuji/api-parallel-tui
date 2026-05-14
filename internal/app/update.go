@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/bubbles/v2/textarea"
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -173,13 +174,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.syncViewportContent()
 			return m, nil
 		case "up":
-			m.moveVertical(-1)
-			m.syncViewportContent()
-			return m, nil
+			if m.shouldMoveVertical(-1) {
+				m.moveVertical(-1)
+				m.syncViewportContent()
+				return m, nil
+			}
 		case "down":
-			m.moveVertical(1)
-			m.syncViewportContent()
-			return m, nil
+			if m.shouldMoveVertical(1) {
+				m.moveVertical(1)
+				m.syncViewportContent()
+				return m, nil
+			}
 		case "pgdown", "ctrl+f":
 			m.Viewport.PageDown()
 			m.syncViewportContent()
@@ -420,6 +425,39 @@ func (m *model) moveVertical(delta int) {
 		}
 		m.updateFocus()
 	}
+}
+
+func (m model) shouldMoveVertical(delta int) bool {
+	if m.FocusIndex < globalFieldCount {
+		return true
+	}
+
+	reqIndex, field := decodeFieldIndex(m.FocusIndex)
+	if reqIndex < 0 || reqIndex >= len(m.Forms) {
+		return true
+	}
+
+	switch field {
+	case fieldHeaders:
+		return shouldMoveTextareaVertical(m.Forms[reqIndex].HeadersArea, delta)
+	case fieldPayload:
+		return shouldMoveTextareaVertical(m.Forms[reqIndex].PayloadArea, delta)
+	default:
+		return true
+	}
+}
+
+func shouldMoveTextareaVertical(area textarea.Model, delta int) bool {
+	lineCount := area.LineCount()
+	lineInfo := area.LineInfo()
+	line := area.Line()
+	if delta < 0 {
+		return line <= 0 && lineInfo.RowOffset <= 0
+	}
+	if delta > 0 {
+		return line >= lineCount-1 && lineInfo.RowOffset >= lineInfo.Height-1
+	}
+	return true
 }
 
 func (m *model) moveToAdjacentRequest(delta int) {

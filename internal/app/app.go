@@ -27,8 +27,15 @@ func newRequestForm() RequestForm {
 	headers.SetValue("Content-Type: application/json")
 	payload.SetValue("")
 
-	headers.SetHeight(5)
-	payload.SetHeight(8)
+	headers.DynamicHeight = true
+	headers.MinHeight = 2
+	headers.MaxHeight = 5
+	headers.MaxContentHeight = maxTextareaContentHeight
+
+	payload.DynamicHeight = true
+	payload.MinHeight = 2
+	payload.MaxHeight = 5
+	payload.MaxContentHeight = maxTextareaContentHeight
 
 	return RequestForm{
 		NameInput:   name,

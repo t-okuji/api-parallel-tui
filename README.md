@@ -12,6 +12,7 @@ TUI 上でリクエストを編集し、そのまま複数回・複数並列で�
 - `Repeat` で各 Request の実行回数を指定
 - 実行結果を `Request 1`, `Request 2` ごとに表示
 - 選択中の結果の `Body Preview` を表示
+- `Payload` の JSON 色付きプレビューを表示
 - SQLite へのセッション保存 / 読み込み
 - 画面が小さい場合でも縦スクロール可能
 
